@@ -1,5 +1,9 @@
 {
   "id": "polza-balance",
+  "name": "Polza.ai Balance",
+  "description": "Shows current Polza.ai account balance in the sidebar",
+  "version": "1.0.0",
+  "author": "akrhin",
   "scripts": ["polza-balance.js"],
   "stylesheets": ["polza-balance.css"]
 }
