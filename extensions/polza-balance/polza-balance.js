@@ -266,7 +266,8 @@
 
   function fmtPct(numer, denom) {
     if (!denom) return '';
-    return (numer / denom * 100).toFixed(0) + '%';
+    const raw = numer / denom * 100;
+    return Math.min(raw, 100).toFixed(0) + '%';
   }
 
   // ── Renderers ────────────────────────────────────────────────
