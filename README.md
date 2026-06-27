@@ -1,17 +1,17 @@
 # Polza WebUI Extensions
 
-**English** · [**Русский**](README.ru.md)
+[**English**](README.en.md) · **Русский**
 
-Extensions for [Hermes WebUI](https://github.com/nesquena/hermes-webui) — Polza.ai balance widget, usage stats, and more.
-
----
-
-## Available
-
-| Extension | Description |
-|-----------|-------------|
-| [polza-balance](extensions/polza-balance/) | Floating widget: account balance + daily spending breakdown by model with token counts |
+Расширения для [Hermes WebUI](https://github.com/nesquena/hermes-webui) — виджет баланса Polza.ai, статистика использования и другое.
 
 ---
 
-Contributions welcome — open an issue or PR.
+## Доступные расширения
+
+| Расширение | Описание |
+|------------|----------|
+| [polza-balance](extensions/polza-balance/) | Плавающий виджет: баланс счёта + дневные расходы с разбивкой по моделям и токенам |
+
+---
+
+PR и предложения приветствуются — открывайте issue.
