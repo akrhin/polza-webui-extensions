@@ -1,0 +1,5 @@
+{
+  "id": "polza-balance",
+  "scripts": ["polza-balance.js"],
+  "stylesheets": ["polza-balance.css"]
+}

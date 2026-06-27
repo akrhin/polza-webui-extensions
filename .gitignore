@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+node_modules/
+
+# Development plans — not part of the deliverable
+PLAN.md
+TODO.md
+*.plan.md
+notes/
+scratch/
