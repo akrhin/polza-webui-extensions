@@ -365,13 +365,13 @@
         const inToks = fmtTokens(item.promptTokens);
         const outToks = fmtTokens(item.completionTokens);
         const time = item.createdAt ? fmtTime(item.createdAt) : '';
-        html += `<div style="display:flex;justify-content:space-between;gap:6px;padding:2px 0;font-size:11px;">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;max-width:130px;" title="${escHtml(item.model)}">${escHtml(item.model)}</span>
-          <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">
-            <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span>
-            <span style="margin-left:4px;">${cf} ₽</span>
-            ${time ? `<span style="color:${dimColor};font-size:9px;margin-left:4px;">${time}</span>` : ''}
-          </span>
+        html += `<div style="padding:3px 0;border-bottom:1px solid ${borderColor};">
+          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(item.model)}">${escHtml(item.model)}</div>
+          <div style="display:flex;gap:8px;font-size:10px;color:${dimColor};">
+            <span>${inToks}/${outToks}</span>
+            <span style="font-weight:600;color:${textColor};">${cf} ₽</span>
+            ${time ? `<span style="margin-left:auto;">${time}</span>` : ''}
+          </div>
         </div>`;
       });
       container.innerHTML = html;
