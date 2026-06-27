@@ -1,6 +1,6 @@
 /**
  * Polza.ai Balance Widget — floating widget with auto-refresh
- * Phase 1b: Click balance → today's spending with tokens
+ * Phase 2: Tabs: Today (stats) / Recent (last 10 requests: model, tokens, cost)
  * Close popup on outside click.
  * Key + interval configurable via prompt().
  */
@@ -21,7 +21,9 @@
   })();
   let balance = null, error = null, loading = false;
   let todayCost = null, todayCostLoading = false;
+  let recentItems = null, recentLoading = false;
   let popupVisible = false;
+  let popupTab = 'today'; // 'today' | 'recent'
   let timer = null;
 
   function cssVar(name, fallback) {
@@ -129,16 +131,50 @@
     todayCostLoading = false; render();
   }
 
+  async function fetchRecent() {
+    if (!apiKey || recentLoading) return;
+    recentLoading = true; render();
+    try {
+      const url = `${HISTORY_URL}?page=1&limit=10&sortBy=createdAt&sortOrder=desc`;
+      const r = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+      if (!r.ok) {
+        let errMsg = `HTTP ${r.status}`;
+        try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
+        recentItems = { error: errMsg, items: [] };
+        recentLoading = false; render(); return;
+      }
+      const data = await r.json();
+      const items = data.items || data.data || [];
+      recentItems = { items: items.slice(0, 10).map(item => ({
+        model: item.modelDisplayName || item.model || 'unknown',
+        cost: parseFloat(item.cost ?? item.clientCost) || 0,
+        promptTokens: item.usage?.prompt_tokens || 0,
+        completionTokens: item.usage?.completion_tokens || 0,
+        createdAt: item.createdAt || null,
+      })), error: null };
+    } catch(e) { recentItems = { error: e.message, items: [] }; }
+    recentLoading = false; render();
+  }
+
   function togglePopup() {
     if (popupVisible) { closePopup(); return; }
     popupVisible = true;
+    popupTab = 'today';
     render();
     if (todayCost === null && !todayCostLoading) fetchTodayCost();
+    if (recentItems === null && !recentLoading) fetchRecent();
   }
 
   function closePopup() {
     popupVisible = false;
     render();
+  }
+
+  function switchTab(tab) {
+    popupTab = tab;
+    render();
+    if (tab === 'recent' && recentItems === null && !recentLoading) fetchRecent();
+    if (tab === 'today' && todayCost === null && !todayCostLoading) fetchTodayCost();
   }
 
   function handleOutsideClick(e) {
@@ -171,7 +207,8 @@
         try { localStorage.setItem(INT_KEY, String(n)); } catch(e) {}
       }
     }
-    balance = null; error = null; todayCost = null; todayCostLoading = false; popupVisible = false;
+    balance = null; error = null; todayCost = null; todayCostLoading = false;
+    recentItems = null; recentLoading = false; popupVisible = false;
     stopTimer();
     render();
     if (v) { fetchBalance(); startTimer(); }
@@ -191,6 +228,12 @@
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
     return String(n);
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
 
   function render() {
@@ -242,16 +285,47 @@
 
     const popup = document.createElement('div');
     popup.id = 'pz-popup';
-    popup.style.cssText = `position:fixed;top:30px;right:80px;z-index:100000;background:${popupBg};border:1px solid ${borderColor};border-radius:8px;padding:12px;font-size:12px;color:${textColor};min-width:260px;max-width:320px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
+    popup.style.cssText = `position:fixed;top:30px;right:80px;z-index:100000;background:${popupBg};border:1px solid ${borderColor};border-radius:8px;padding:8px;font-size:12px;color:${textColor};min-width:280px;max-width:360px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
 
+    // Tab bar
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = `display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid ${borderColor};padding-bottom:4px;`;
+    ['today', 'recent'].forEach(tab => {
+      const btn = document.createElement('button');
+      btn.textContent = tab === 'today' ? '📊 Today' : '🕐 Recent';
+      btn.style.cssText = `flex:1;padding:3px 6px;border:1px solid transparent;border-radius:4px;background:${popupTab === tab ? 'var(--accent-color,#4a9eff)' : 'transparent'};color:${popupTab === tab ? '#fff' : textColor};cursor:pointer;font-size:11px;font-weight:${popupTab === tab ? '600' : '400'};`;
+      btn.addEventListener('click', () => switchTab(tab));
+      tabBar.appendChild(btn);
+    });
+    popup.appendChild(tabBar);
+
+    // Tab content
+    const content = document.createElement('div');
+
+    if (popupTab === 'today') {
+      renderTodayTab(content, borderColor, textColor, dimColor);
+    } else {
+      renderRecentTab(content, borderColor, textColor, dimColor);
+    }
+
+    popup.appendChild(content);
+    document.body.appendChild(popup);
+
+    // Outside-click listener
+    setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 0);
+  }
+
+  function renderTodayTab(container, borderColor, textColor, dimColor) {
     if (todayCostLoading) {
-      popup.textContent = '⏳ Loading today\'s spending\u2026';
+      container.textContent = '⏳ Loading today\u2019s spending\u2026';
     } else if (todayCost && todayCost.error) {
-      popup.innerHTML = `<span style="color:#ff6b6b;">${escHtml(todayCost.error)}</span>
+      container.innerHTML = `<span style="color:#ff6b6b;">${escHtml(todayCost.error)}</span>
         <br><button id="pz-retry" style="margin-top:6px;padding:2px 8px;border:1px solid ${borderColor};border-radius:4px;background:transparent;color:${textColor};cursor:pointer;font-size:11px;">Retry</button>`;
       document.getElementById('pz-retry')?.addEventListener('click', () => { todayCost = null; fetchTodayCost(); });
     } else if (todayCost === null) {
-      popup.innerHTML = `<span style="color:${dimColor};">Click to load</span>
+      container.innerHTML = `<span style="color:${dimColor};">No data</span>
         <br><button id="pz-retry" style="margin-top:6px;padding:2px 8px;border:1px solid ${borderColor};border-radius:4px;background:transparent;color:${textColor};cursor:pointer;font-size:11px;">Load</button>`;
       document.getElementById('pz-retry')?.addEventListener('click', () => { todayCost = null; fetchTodayCost(); });
     } else {
@@ -265,18 +339,43 @@
         const outToks = fmtTokens(m.completionTokens);
         html += `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;">${escHtml(m.model)}</span>
-          <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">${cf} <span style="color:${dimColor};font-size:10px;">₽</span> <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span></span>
+          <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">${cf} ₽ <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span></span>
         </div>`;
       });
-      popup.innerHTML = html;
+      container.innerHTML = html;
     }
+  }
 
-    document.body.appendChild(popup);
-
-    // Outside-click listener — capture phase to close before other handlers
-    setTimeout(() => {
-      document.addEventListener('click', handleOutsideClick);
-    }, 0);
+  function renderRecentTab(container, borderColor, textColor, dimColor) {
+    if (recentLoading) {
+      container.textContent = '⏳ Loading recent\u2026';
+    } else if (recentItems && recentItems.error) {
+      container.innerHTML = `<span style="color:#ff6b6b;">${escHtml(recentItems.error)}</span>
+        <br><button id="pz-recent-retry" style="margin-top:6px;padding:2px 8px;border:1px solid ${borderColor};border-radius:4px;background:transparent;color:${textColor};cursor:pointer;font-size:11px;">Retry</button>`;
+      document.getElementById('pz-recent-retry')?.addEventListener('click', () => { recentItems = null; fetchRecent(); });
+    } else if (!recentItems || recentItems.items.length === 0) {
+      container.innerHTML = `<span style="color:${dimColor};">No recent requests</span>
+        <br><button id="pz-recent-retry" style="margin-top:6px;padding:2px 8px;border:1px solid ${borderColor};border-radius:4px;background:transparent;color:${textColor};cursor:pointer;font-size:11px;">Load</button>`;
+      document.getElementById('pz-recent-retry')?.addEventListener('click', () => { recentItems = null; fetchRecent(); });
+    } else {
+      let html = `<div style="font-weight:600;margin-bottom:4px;">Recent 10</div>`;
+      html += `<div style="border-top:1px solid ${borderColor};margin-bottom:4px;"></div>`;
+      recentItems.items.forEach((item) => {
+        const cf = fmtNum(item.cost);
+        const inToks = fmtTokens(item.promptTokens);
+        const outToks = fmtTokens(item.completionTokens);
+        const time = item.createdAt ? fmtTime(item.createdAt) : '';
+        html += `<div style="display:flex;justify-content:space-between;gap:6px;padding:2px 0;font-size:11px;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;max-width:130px;" title="${escHtml(item.model)}">${escHtml(item.model)}</span>
+          <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">
+            <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span>
+            <span style="margin-left:4px;">${cf} ₽</span>
+            ${time ? `<span style="color:${dimColor};font-size:9px;margin-left:4px;">${time}</span>` : ''}
+          </span>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
   }
 
   // Cleanup listener when popup closes via other means
