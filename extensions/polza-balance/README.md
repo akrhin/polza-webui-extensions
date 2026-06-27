@@ -1,5 +1,7 @@
 # Polza.ai Balance Widget — Hermes WebUI Extension
 
+[**English**](#) · [**Русский**](#русский)
+
 Floating widget for [Hermes WebUI](https://github.com/nesquena/hermes-webui) that shows your Polza.ai account balance. Click the balance to see today's spending breakdown by model with input/output token counts.
 
 ## Features
@@ -220,6 +222,62 @@ balance = d.credits_remaining;
 
 **Q:** How to uninstall?
 **A:** Remove from gallery (Settings → Extensions) or delete the files from `HERMES_WEBUI_EXTENSION_DIR` and remove CSP var from `.env`. Restart WebUI.
+
+---
+
+## <a id="русский"></a>Виджет баланса Polza.ai — расширение Hermes WebUI
+
+Плавающий виджет для [Hermes WebUI](https://github.com/nesquena/hermes-webui), показывающий баланс счёта Polza.ai. Нажмите на баланс — увидите дневные расходы с разбивкой по моделям и токенам.
+
+### Возможности
+
+| | |
+|---|---|
+| 💰 | Текущий баланс — автообновление (настраивается, по умолчанию 60 с) |
+| 📊 | Клик → ежедневная статистика: расход, количество генераций, токены (вход/выход) |
+| 🏆 | Топ-5 моделей по стоимости за сегодня |
+| 🔄 | Пагинированная история — суммируются все генерации за день |
+| 🔑 | Смена API-ключа через правый клик / долгое нажатие на балансе |
+| 🌗 | Автоопределение тёмной / светлой темы WebUI |
+
+### Установка
+
+**Через галерею (рекомендуется):** `Настройки → Расширения` → найти **Polza.ai Balance** → **Установить**. Обновить страницу.
+
+**Вручную:** Добавить в `.env` WebUI:
+
+```bash
+HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
+HERMES_WEBUI_EXTENSION_SCRIPT_URLS=/extensions/polza-balance/polza-balance.js
+HERMES_WEBUI_EXTENSION_STYLESHEET_URLS=/extensions/polza-balance/polza-balance.css
+```
+
+Скопировать файлы в директорию расширений, перезапустить WebUI и сделать жёсткую перезагрузку браузера (`Ctrl+Shift+R`).
+
+### Использование
+
+| Действие | Результат |
+|----------|-----------|
+| **Клик** по балансу | Открыть/закрыть попап с расходами |
+| **Правый клик / долгое нажатие** | Сменить API-ключ и интервал обновления |
+| **🔑 Polza** (при первом запуске) | Ввести API-ключ |
+
+### Добавление в галерею WebUI
+
+Форкнуть [`hermes-webui/hermes-webui-extensions`](https://github.com/hermes-webui/hermes-webui-extensions), добавить директорию `extensions/polza-balance/` с файлами и `preview.png`, открыть PR.
+
+### Адаптация под другого провайдера
+
+Расширение — готовый шаблон. Замените в `polza-balance.js`:
+
+| Переменная | Что менять |
+|------------|-----------|
+| `BALANCE_URL` | Эндпоинт баланса провайдера |
+| `HISTORY_URL` | Эндпоинт истории (или удалить) |
+| `d.amount` в `fetchBalance()` | Поле баланса в ответе API |
+| `item.cost`, `item.usage` в `fetchTodayCost()` | Поля стоимости и токенов |
+
+Не забудьте поменять `HERMES_WEBUI_CSP_CONNECT_EXTRA` на домен API вашего провайдера.
 
 ---
 

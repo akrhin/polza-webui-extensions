@@ -1,6 +1,10 @@
 # Polza WebUI Extensions
 
-Extensions for [Hermes WebUI](https://github.com/nesquena/hermes-webui).
+**English** · [**Русский**](README.ru.md)
+
+Extensions for [Hermes WebUI](https://github.com/nesquena/hermes-webui) — Polza.ai balance widget, usage stats, and more.
+
+---
 
 ## Available
 
