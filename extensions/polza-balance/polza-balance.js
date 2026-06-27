@@ -1,6 +1,6 @@
 /**
  * Polza.ai Balance Widget — floating widget with auto-refresh
- * Phase 2: Tabs: Today (stats) / Recent (last 10 requests: model, tokens, cost)
+ * Phase 3: Provider badges, cache/reasoning stats, total spent, refresh btn
  * Close popup on outside click.
  * Key + interval configurable via prompt().
  */
@@ -11,6 +11,12 @@
   const BALANCE_URL = 'https://polza.ai/api/v1/balance';
   const HISTORY_URL = 'https://polza.ai/api/v1/history/generations';
   const TOPUP_URL = 'https://polza.ai/dashboard/billing';
+
+  const PROVIDER_COLORS = {
+    'DeepSeek': '#4a9eff', 'OpenAI': '#10a37f', 'Anthropic': '#d97757',
+    'Google': '#4285f4', 'Meta': '#1877f2', 'Mistral': '#ff6b35',
+    'OpenRouter': '#ff6b6b', 'Grok': '#1da1f2', default: '#888'
+  };
 
   let apiKey = (() => { try { return localStorage.getItem(KEY) || ''; } catch(e) { return ''; } })();
   let intervalSec = (() => {
@@ -25,6 +31,7 @@
   let popupVisible = false;
   let popupTab = 'today';
   let timer = null;
+  let totalSpent = null;
 
   function cssVar(name, fallback) {
     try {
@@ -64,10 +71,44 @@
       } else {
         const d = await r.json();
         balance = parseFloat(d.amount);
+        totalSpent = d.spentAmount ? parseFloat(d.spentAmount) : null;
         error = null;
       }
     } catch(e) { error = e.message; balance = null; }
     loading = false; renderBalance();
+  }
+
+  // ── History helpers ──────────────────────────────────────────
+
+  function parseHistoryItem(item) {
+    const pt = item.usage?.prompt_tokens || 0;
+    const ct = item.usage?.completion_tokens || 0;
+    const cached = item.usage?.prompt_tokens_details?.cached_tokens || 0;
+    const reasoning = item.usage?.completion_tokens_details?.reasoning_tokens || 0;
+    return {
+      model: item.modelDisplayName || item.model || 'unknown',
+      provider: item.provider || '',
+      cost: parseFloat(item.cost ?? item.clientCost) || 0,
+      promptTokens: pt,
+      completionTokens: ct,
+      cachedTokens: cached,
+      reasoningTokens: reasoning,
+      genTimeMs: item.generationTimeMs || 0,
+      createdAt: item.createdAt || null,
+    };
+  }
+
+  async function fetchHistory(params) {
+    if (!apiKey) return { error: 'No API key' };
+    const q = Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    const r = await fetch(`${HISTORY_URL}?${q}`, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    if (!r.ok) {
+      let errMsg = `HTTP ${r.status}`;
+      try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
+      return { error: errMsg };
+    }
+    const data = await r.json();
+    return data;
   }
 
   async function fetchTodayCost() {
@@ -83,30 +124,18 @@
       let allItems = [], page = 1;
       let totalItems = 0;
       while (true) {
-        const url = `${HISTORY_URL}?page=${page}&limit=100&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&sortBy=createdAt&sortOrder=desc`;
-        const r = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        if (!r.ok) {
-          let errMsg = `HTTP ${r.status}`;
-          try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
-          todayCost = { error: errMsg, total: 0, count: 0, breakdown: [] };
-          todayCostLoading = false; renderPopup(); return;
-        }
-        const data = await r.json();
+        const data = await fetchHistory({
+          page, limit: 100,
+          dateFrom, dateTo,
+          sortBy: 'createdAt', sortOrder: 'desc'
+        });
+        if (data.error) { todayCost = { error: data.error, total: 0, count: 0, breakdown: [] }; break; }
         const items = data.items || data.data || [];
         const metaTotal = (data.meta && data.meta.total) || data.total || 0;
         if (page === 1) totalItems = metaTotal;
         items.forEach(item => {
-          const c = parseFloat(item.cost ?? item.clientCost);
-          if (!isNaN(c) && c > 0) {
-            const pt = item.usage?.prompt_tokens || 0;
-            const ct = item.usage?.completion_tokens || 0;
-            allItems.push({
-              model: item.modelDisplayName || item.model || 'unknown',
-              cost: c,
-              promptTokens: pt,
-              completionTokens: ct,
-            });
-          }
+          const parsed = parseHistoryItem(item);
+          if (parsed.cost > 0) allItems.push(parsed);
         });
         if (items.length === 0 || items.length < 100 || allItems.length >= metaTotal) break;
         page++;
@@ -115,19 +144,26 @@
       const totalCost = allItems.reduce((s, i) => s + i.cost, 0);
       const totalIn = allItems.reduce((s, i) => s + i.promptTokens, 0);
       const totalOut = allItems.reduce((s, i) => s + i.completionTokens, 0);
+      const totalCached = allItems.reduce((s, i) => s + i.cachedTokens, 0);
+      const totalReasoning = allItems.reduce((s, i) => s + i.reasoningTokens, 0);
       const byModel = {};
       allItems.forEach(i => {
-        if (!byModel[i.model]) byModel[i.model] = { cost: 0, promptTokens: 0, completionTokens: 0 };
+        if (!byModel[i.model]) byModel[i.model] = { cost: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0 };
         byModel[i.model].cost += i.cost;
         byModel[i.model].promptTokens += i.promptTokens;
         byModel[i.model].completionTokens += i.completionTokens;
+        byModel[i.model].cachedTokens += i.cachedTokens;
       });
       const top5 = Object.entries(byModel)
         .map(([model, stats]) => ({ model, ...stats }))
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 5);
-      todayCost = { total: totalCost, count: totalItems, totalIn, totalOut, breakdown: top5 };
-    } catch(e) { todayCost = { error: e.message, total: 0, count: 0, totalIn: 0, totalOut: 0, breakdown: [] }; }
+      todayCost = {
+        total: totalCost, count: totalItems,
+        totalIn, totalOut, totalCached, totalReasoning,
+        breakdown: top5
+      };
+    } catch(e) { todayCost = { error: e.message, total: 0, count: 0, totalIn: 0, totalOut: 0, totalCached: 0, totalReasoning: 0, breakdown: [] }; }
     todayCostLoading = false; renderPopup();
   }
 
@@ -135,23 +171,12 @@
     if (!apiKey || recentLoading) return;
     recentLoading = true; renderPopup();
     try {
-      const url = `${HISTORY_URL}?page=1&limit=10&sortBy=createdAt&sortOrder=desc`;
-      const r = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-      if (!r.ok) {
-        let errMsg = `HTTP ${r.status}`;
-        try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
-        recentItems = { error: errMsg, items: [] };
-        recentLoading = false; renderPopup(); return;
+      const data = await fetchHistory({ page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc' });
+      if (data.error) { recentItems = { error: data.error, items: [] }; }
+      else {
+        const items = data.items || data.data || [];
+        recentItems = { items: items.slice(0, 10).map(parseHistoryItem), error: null };
       }
-      const data = await r.json();
-      const items = data.items || data.data || [];
-      recentItems = { items: items.slice(0, 10).map(item => ({
-        model: item.modelDisplayName || item.model || 'unknown',
-        cost: parseFloat(item.cost ?? item.clientCost) || 0,
-        promptTokens: item.usage?.prompt_tokens || 0,
-        completionTokens: item.usage?.completion_tokens || 0,
-        createdAt: item.createdAt || null,
-      })), error: null };
     } catch(e) { recentItems = { error: e.message, items: [] }; }
     recentLoading = false; renderPopup();
   }
@@ -203,7 +228,8 @@
         try { localStorage.setItem(INT_KEY, String(n)); } catch(e) {}
       }
     }
-    balance = null; error = null; todayCost = null; todayCostLoading = false;
+    balance = null; error = null; totalSpent = null;
+    todayCost = null; todayCostLoading = false;
     recentItems = null; recentLoading = false; popupVisible = false;
     stopTimer();
     renderBalance();
@@ -232,7 +258,18 @@
     return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
 
-  // ── Separate renderers ───────────────────────────────────
+  function fmtMs(ms) {
+    if (!ms) return '';
+    if (ms < 1000) return ms + 'ms';
+    return (ms / 1000).toFixed(1) + 's';
+  }
+
+  function fmtPct(numer, denom) {
+    if (!denom) return '';
+    return (numer / denom * 100).toFixed(0) + '%';
+  }
+
+  // ── Renderers ────────────────────────────────────────────────
 
   function renderBalance() {
     const el = document.getElementById('pz-root');
@@ -277,7 +314,6 @@
   }
 
   function renderPopup() {
-    // Remove existing popup
     const existing = document.getElementById('pz-popup');
     if (existing) existing.remove();
     if (!popupVisible) return;
@@ -302,6 +338,21 @@
       btn.addEventListener('click', (e) => { e.stopPropagation(); switchTab(tab); });
       tabBar.appendChild(btn);
     });
+
+    // Refresh button
+    const rbtn = document.createElement('button');
+    rbtn.textContent = '↻';
+    rbtn.title = 'Refresh';
+    const rbg = dark ? 'rgba(128,128,128,0.15)' : 'rgba(128,128,128,0.08)';
+    rbtn.style.cssText = `padding:3px 8px;margin-left:4px;border:1px solid ${borderColor};border-radius:4px;background:${rbg};color:${textColor};cursor:pointer;font-size:12px;white-space:nowrap;`;
+    rbtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Reload active tab from scratch
+      if (popupTab === 'today') { todayCost = null; fetchTodayCost(); }
+      else { recentItems = null; fetchRecent(); }
+    });
+    tabBar.appendChild(rbtn);
+
     popup.appendChild(tabBar);
 
     // Tab content
@@ -331,17 +382,36 @@
     } else {
       const t = fmtNum(todayCost.total);
       let html = `<div style="font-weight:700;margin-bottom:4px;">Today — ${t} <span style="font-weight:400;">₽</span></div>`;
-      html += `<div style="font-size:10px;color:${dimColor};margin-bottom:6px;">${todayCost.count} gen · ${fmtTokens(todayCost.totalIn)} in / ${fmtTokens(todayCost.totalOut)} out</div>`;
+      html += `<div style="font-size:10px;color:${dimColor};margin-bottom:6px;">${todayCost.count} gen · ${fmtTokens(todayCost.totalIn)} in / ${fmtTokens(todayCost.totalOut)} out`;
+      // Cache efficiency
+      if (todayCost.totalCached > 0) {
+        html += ` · 🗄 ${fmtPct(todayCost.totalCached, todayCost.totalIn)} cached`;
+      }
+      // Reasoning tokens
+      if (todayCost.totalReasoning > 0) {
+        html += ` · 🧠 ${fmtTokens(todayCost.totalReasoning)} thinking`;
+      }
+      html += `</div>`;
       html += `<div style="border-top:1px solid ${borderColor};margin-bottom:4px;"></div>`;
       todayCost.breakdown.forEach((m) => {
         const cf = fmtNum(m.cost);
         const inToks = fmtTokens(m.promptTokens);
         const outToks = fmtTokens(m.completionTokens);
+        let cacheBadge = '';
+        if (m.cachedTokens > 0) {
+          cacheBadge = `<span style="font-size:9px;color:#4a9eff;"> 🗄${fmtPct(m.cachedTokens, m.promptTokens)}</span>`;
+        }
         html += `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;">${escHtml(m.model)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;" title="${escHtml(m.model)}">${escHtml(m.model)}${cacheBadge}</span>
           <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">${cf} ₽ <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span></span>
         </div>`;
       });
+      // Total spent lifetime
+      if (totalSpent !== null) {
+        html += `<div style="border-top:1px solid ${borderColor};margin-top:6px;padding-top:4px;font-size:10px;color:${dimColor};">
+          💰 Total spent all time: <span style="color:${textColor};font-weight:600;">${fmtNum(totalSpent)} ₽</span>
+        </div>`;
+      }
       container.innerHTML = html;
     }
   }
@@ -365,11 +435,30 @@
         const inToks = fmtTokens(item.promptTokens);
         const outToks = fmtTokens(item.completionTokens);
         const time = item.createdAt ? fmtTime(item.createdAt) : '';
+        const genTime = item.genTimeMs ? fmtMs(item.genTimeMs) : '';
+        // Provider badge
+        const pColor = PROVIDER_COLORS[item.provider] || PROVIDER_COLORS.default;
+        const badge = item.provider
+          ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${pColor};margin-right:4px;vertical-align:middle;" title="${escHtml(item.provider)}"></span>`
+          : '';
+        // Cache badge
+        let cacheStr = '';
+        if (item.cachedTokens > 0) {
+          cacheStr = ` 🗄${fmtPct(item.cachedTokens, item.promptTokens)}`;
+        }
+        // Reasoning badge
+        let reasonStr = '';
+        if (item.reasoningTokens > 0) {
+          reasonStr = ` 🧠${fmtTokens(item.reasoningTokens)}`;
+        }
         html += `<div style="padding:3px 0;border-bottom:1px solid ${borderColor};">
-          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(item.model)}">${escHtml(item.model)}</div>
-          <div style="display:flex;gap:8px;font-size:10px;color:${dimColor};">
+          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(item.model)}">${badge}${escHtml(item.model)}</div>
+          <div style="display:flex;gap:6px;font-size:10px;color:${dimColor};">
             <span>${inToks}/${outToks}</span>
             <span style="font-weight:600;color:${textColor};">${cf} ₽</span>
+            ${genTime ? `<span>⏱${genTime}</span>` : ''}
+            ${cacheStr ? `<span style="color:#4a9eff;">${cacheStr}</span>` : ''}
+            ${reasonStr ? `<span style="color:#d97757;">${reasonStr}</span>` : ''}
             ${time ? `<span style="margin-left:auto;">${time}</span>` : ''}
           </div>
         </div>`;
