@@ -25,7 +25,6 @@
   let popupVisible = false;
   let popupTab = 'today';
   let timer = null;
-  let listenerAttached = false;
 
   function cssVar(name, fallback) {
     try {
@@ -55,7 +54,7 @@
 
   async function fetchBalance() {
     if (!apiKey) return;
-    loading = true; error = null; render();
+    loading = true; error = null; renderBalance();
     try {
       const r = await fetch(BALANCE_URL, { headers: { 'Authorization': `Bearer ${apiKey}` } });
       if (!r.ok) {
@@ -68,12 +67,12 @@
         error = null;
       }
     } catch(e) { error = e.message; balance = null; }
-    loading = false; render();
+    loading = false; renderBalance();
   }
 
   async function fetchTodayCost() {
     if (!apiKey || todayCostLoading) return;
-    todayCostLoading = true; render();
+    todayCostLoading = true; renderPopup();
     try {
       const now = new Date();
       const mskOff = 3 * 3600000;
@@ -89,8 +88,8 @@
         if (!r.ok) {
           let errMsg = `HTTP ${r.status}`;
           try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
-          todayCost = { error: errMsg, total: 0, count: 0, totalTokens: 0, breakdown: [] };
-          todayCostLoading = false; render(); return;
+          todayCost = { error: errMsg, total: 0, count: 0, breakdown: [] };
+          todayCostLoading = false; renderPopup(); return;
         }
         const data = await r.json();
         const items = data.items || data.data || [];
@@ -129,12 +128,12 @@
         .slice(0, 5);
       todayCost = { total: totalCost, count: totalItems, totalIn, totalOut, breakdown: top5 };
     } catch(e) { todayCost = { error: e.message, total: 0, count: 0, totalIn: 0, totalOut: 0, breakdown: [] }; }
-    todayCostLoading = false; render();
+    todayCostLoading = false; renderPopup();
   }
 
   async function fetchRecent() {
     if (!apiKey || recentLoading) return;
-    recentLoading = true; render();
+    recentLoading = true; renderPopup();
     try {
       const url = `${HISTORY_URL}?page=1&limit=10&sortBy=createdAt&sortOrder=desc`;
       const r = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
@@ -142,7 +141,7 @@
         let errMsg = `HTTP ${r.status}`;
         try { const e = await r.json(); errMsg = (e.error && e.error.message) || errMsg; } catch(e2) {}
         recentItems = { error: errMsg, items: [] };
-        recentLoading = false; render(); return;
+        recentLoading = false; renderPopup(); return;
       }
       const data = await r.json();
       const items = data.items || data.data || [];
@@ -154,29 +153,21 @@
         createdAt: item.createdAt || null,
       })), error: null };
     } catch(e) { recentItems = { error: e.message, items: [] }; }
-    recentLoading = false; render();
+    recentLoading = false; renderPopup();
   }
 
   function togglePopup() {
-    popupVisible ? closePopup() : openPopup();
-  }
-
-  function openPopup(tab) {
-    popupVisible = true;
-    popupTab = tab || 'today';
-    render();
-    if (popupTab === 'today' && todayCost === null && !todayCostLoading) fetchTodayCost();
-    if (popupTab === 'recent' && recentItems === null && !recentLoading) fetchRecent();
-  }
-
-  function closePopup() {
-    popupVisible = false;
-    render();
+    if (popupVisible) { popupVisible = false; renderPopup(); }
+    else { popupVisible = true; popupTab = 'today'; renderPopup(); }
+    if (popupVisible) {
+      if (todayCost === null && !todayCostLoading) fetchTodayCost();
+      if (recentItems === null && !recentLoading) fetchRecent();
+    }
   }
 
   function switchTab(tab) {
     popupTab = tab;
-    render();
+    renderPopup();
     if (tab === 'recent' && recentItems === null && !recentLoading) fetchRecent();
     if (tab === 'today' && todayCost === null && !todayCostLoading) fetchTodayCost();
   }
@@ -184,10 +175,10 @@
   function handleOutsideClick(e) {
     if (!popupVisible) return;
     const popup = document.getElementById('pz-popup');
-    const root = document.getElementById('pz-root');
     if (!popup) return;
-    if (popup.contains(e.target) || root?.contains(e.target)) return;
-    closePopup();
+    if (popup.contains(e.target) || e.target.closest('#pz-root')) return;
+    popupVisible = false;
+    renderPopup();
   }
 
   function startTimer() {
@@ -215,7 +206,7 @@
     balance = null; error = null; todayCost = null; todayCostLoading = false;
     recentItems = null; recentLoading = false; popupVisible = false;
     stopTimer();
-    render();
+    renderBalance();
     if (v) { fetchBalance(); startTimer(); }
   }
 
@@ -241,14 +232,15 @@
     return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
 
-  function render() {
+  // ── Separate renderers ───────────────────────────────────
+
+  function renderBalance() {
     const el = document.getElementById('pz-root');
     if (!el) return;
 
     const textColor = dark ? '#e0e0e0' : '#222';
     const dimColor = dark ? 'rgba(224,224,224,0.7)' : 'rgba(34,34,34,0.65)';
     const borderColor = dark ? 'rgba(128,128,128,0.3)' : 'rgba(128,128,128,0.2)';
-    const popupBg = dark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)';
 
     if (!apiKey) {
       el.innerHTML = `<button id="pz-btn" style="padding:3px 10px;border:1px solid ${borderColor};border-radius:4px;background:var(--accent-color,#4a9eff);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap;">🔑 Polza</button>`;
@@ -282,11 +274,18 @@
         setKey(k, n > 0 && n <= 3600 ? n : 60);
       });
     }
+  }
 
-    // Popup
+  function renderPopup() {
+    // Remove existing popup
     const existing = document.getElementById('pz-popup');
     if (existing) existing.remove();
     if (!popupVisible) return;
+
+    const textColor = dark ? '#e0e0e0' : '#222';
+    const dimColor = dark ? 'rgba(224,224,224,0.7)' : 'rgba(34,34,34,0.65)';
+    const borderColor = dark ? 'rgba(128,128,128,0.3)' : 'rgba(128,128,128,0.2)';
+    const popupBg = dark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)';
 
     const popup = document.createElement('div');
     popup.id = 'pz-popup';
@@ -381,18 +380,15 @@
   function init() {
     if (document.getElementById('pz-root')) return;
 
-    // Single permanent outside-click listener (attached once)
-    if (!listenerAttached) {
-      document.addEventListener('click', handleOutsideClick);
-      listenerAttached = true;
-    }
+    // Single permanent outside-click listener
+    document.addEventListener('click', handleOutsideClick);
 
     const el = document.createElement('div');
     el.id = 'pz-root';
     const bg = dark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.7)';
     el.style.cssText = `position:fixed;top:4px;right:80px;z-index:99999;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;background:${bg};border-radius:6px;backdrop-filter:blur(4px);`;
     document.body.appendChild(el);
-    render();
+    renderBalance();
     if (apiKey) { fetchBalance(); startTimer(); }
   }
 
