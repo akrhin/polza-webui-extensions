@@ -290,6 +290,7 @@
     const popup = document.createElement('div');
     popup.id = 'pz-popup';
     popup.style.cssText = `position:fixed;top:30px;right:80px;z-index:100000;background:${popupBg};border:1px solid ${borderColor};border-radius:8px;padding:8px;font-size:12px;color:${textColor};min-width:280px;max-width:360px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
+    popup.addEventListener('click', (e) => e.stopPropagation());
 
     // Tab bar
     const tabBar = document.createElement('div');
@@ -298,7 +299,7 @@
       const btn = document.createElement('button');
       btn.textContent = tab === 'today' ? '📊 Today' : '🕐 Recent';
       btn.style.cssText = `flex:1;padding:3px 6px;border:1px solid transparent;border-radius:4px;background:${popupTab === tab ? 'var(--accent-color,#4a9eff)' : 'transparent'};color:${popupTab === tab ? '#fff' : textColor};cursor:pointer;font-size:11px;font-weight:${popupTab === tab ? '600' : '400'};`;
-      btn.addEventListener('click', () => switchTab(tab));
+      btn.addEventListener('click', (e) => { e.stopPropagation(); switchTab(tab); });
       tabBar.appendChild(btn);
     });
     popup.appendChild(tabBar);
