@@ -325,7 +325,7 @@
 
     const popup = document.createElement('div');
     popup.id = 'pz-popup';
-    popup.style.cssText = `position:fixed;top:30px;right:80px;z-index:100000;background:${popupBg};border:1px solid ${borderColor};border-radius:8px;padding:8px;font-size:12px;color:${textColor};min-width:280px;max-width:360px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
+    popup.style.cssText = `position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:100000;background:${popupBg};border:1px solid ${borderColor};border-radius:8px;padding:8px;font-size:12px;color:${textColor};width:340px;max-width:calc(100vw - 24px);backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
     popup.addEventListener('click', (e) => e.stopPropagation());
 
     // Tab bar
@@ -382,16 +382,18 @@
     } else {
       const t = fmtNum(todayCost.total);
       let html = `<div style="font-weight:700;margin-bottom:4px;">Today — ${t} <span style="font-weight:400;">₽</span></div>`;
-      html += `<div style="font-size:10px;color:${dimColor};margin-bottom:6px;">${todayCost.count} gen · ${fmtTokens(todayCost.totalIn)} in / ${fmtTokens(todayCost.totalOut)} out`;
-      // Cache efficiency
+      html += `<div style="font-size:10px;color:${dimColor};margin-bottom:2px;">${todayCost.count} gen · ${fmtTokens(todayCost.totalIn)} in / ${fmtTokens(todayCost.totalOut)} out</div>`;
+      // Cache + reasoning on line 2
+      let stats2 = [];
       if (todayCost.totalCached > 0) {
-        html += ` · 🗄 ${fmtPct(todayCost.totalCached, todayCost.totalIn)} cached`;
+        stats2.push(`🗄 ${fmtPct(todayCost.totalCached, todayCost.totalIn)} cached`);
       }
-      // Reasoning tokens
       if (todayCost.totalReasoning > 0) {
-        html += ` · 🧠 ${fmtTokens(todayCost.totalReasoning)} thinking`;
+        stats2.push(`🧠 ${fmtTokens(todayCost.totalReasoning)} thinking`);
       }
-      html += `</div>`;
+      if (stats2.length > 0) {
+        html += `<div style="font-size:10px;color:${dimColor};margin-bottom:6px;">${stats2.join(' · ')}</div>`;
+      }
       html += `<div style="border-top:1px solid ${borderColor};margin-bottom:4px;"></div>`;
       todayCost.breakdown.forEach((m) => {
         const cf = fmtNum(m.cost);
@@ -399,11 +401,14 @@
         const outToks = fmtTokens(m.completionTokens);
         let cacheBadge = '';
         if (m.cachedTokens > 0) {
-          cacheBadge = `<span style="font-size:9px;color:#4a9eff;"> 🗄${fmtPct(m.cachedTokens, m.promptTokens)}</span>`;
+          cacheBadge = `<span style="font-size:9px;color:#4a9eff;margin-left:4px;">🗄${fmtPct(m.cachedTokens, m.promptTokens)}</span>`;
         }
-        html += `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;min-width:0;" title="${escHtml(m.model)}">${escHtml(m.model)}${cacheBadge}</span>
-          <span style="white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;">${cf} ₽ <span style="color:${dimColor};font-size:10px;">${inToks}/${outToks}</span></span>
+        html += `<div style="padding:2px 0;">
+          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(m.model)}">${escHtml(m.model)}${cacheBadge}</div>
+          <div style="display:flex;gap:6px;font-size:10px;color:${dimColor};">
+            <span>${inToks}/${outToks}</span>
+            <span style="font-weight:600;color:${textColor};">${cf} ₽</span>
+          </div>
         </div>`;
       });
       // Total spent lifetime
