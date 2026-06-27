@@ -23,8 +23,9 @@
   let todayCost = null, todayCostLoading = false;
   let recentItems = null, recentLoading = false;
   let popupVisible = false;
-  let popupTab = 'today'; // 'today' | 'recent'
+  let popupTab = 'today';
   let timer = null;
+  let listenerAttached = false;
 
   function cssVar(name, fallback) {
     try {
@@ -157,12 +158,15 @@
   }
 
   function togglePopup() {
-    if (popupVisible) { closePopup(); return; }
+    popupVisible ? closePopup() : openPopup();
+  }
+
+  function openPopup(tab) {
     popupVisible = true;
-    popupTab = 'today';
+    popupTab = tab || 'today';
     render();
-    if (todayCost === null && !todayCostLoading) fetchTodayCost();
-    if (recentItems === null && !recentLoading) fetchRecent();
+    if (popupTab === 'today' && todayCost === null && !todayCostLoading) fetchTodayCost();
+    if (popupTab === 'recent' && recentItems === null && !recentLoading) fetchRecent();
   }
 
   function closePopup() {
@@ -178,6 +182,7 @@
   }
 
   function handleOutsideClick(e) {
+    if (!popupVisible) return;
     const popup = document.getElementById('pz-popup');
     const root = document.getElementById('pz-root');
     if (!popup) return;
@@ -310,11 +315,6 @@
 
     popup.appendChild(content);
     document.body.appendChild(popup);
-
-    // Outside-click listener
-    setTimeout(() => {
-      document.addEventListener('click', handleOutsideClick);
-    }, 0);
   }
 
   function renderTodayTab(container, borderColor, textColor, dimColor) {
@@ -378,15 +378,15 @@
     }
   }
 
-  // Cleanup listener when popup closes via other means
-  const origClose = closePopup;
-  closePopup = function() {
-    origClose();
-    document.removeEventListener('click', handleOutsideClick);
-  };
-
   function init() {
     if (document.getElementById('pz-root')) return;
+
+    // Single permanent outside-click listener (attached once)
+    if (!listenerAttached) {
+      document.addEventListener('click', handleOutsideClick);
+      listenerAttached = true;
+    }
+
     const el = document.createElement('div');
     el.id = 'pz-root';
     const bg = dark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.7)';
