@@ -130,7 +130,7 @@ extensions/polza-balance/
 ├── manifest.json          ← extension metadata (scripts, styles, permissions)
 ├── polza-balance.js       ← widget code
 ├── polza-balance.css      ← styles
-├── preview.png            ← 800×600 screenshot of the extension in action
+├── preview.png            ← 800×600 screenshot (gallery only)
 └── README.md              ← documentation
 ```
 

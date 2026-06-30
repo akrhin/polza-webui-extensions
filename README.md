@@ -128,7 +128,7 @@ extensions/polza-balance/
 ├── manifest.json          ← метаданные расширения (скрипты, стили, права)
 ├── polza-balance.js       ← код виджета
 ├── polza-balance.css      ← стили
-├── preview.png            ← скриншот 800×600
+├── preview.png            ← скриншот 800×600 (только для галереи)
 └── README.md              ← документация
 ```
 
