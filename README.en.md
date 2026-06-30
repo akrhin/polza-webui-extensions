@@ -95,19 +95,22 @@ DeepSeek V4 Flash   63.75 ₽
 ## Architecture
 
 ```
-  Browser          Hermes WebUI        Polza.ai API
-    │                   │                   │
-    │  1. load          │                   │
-    │  polza-balance.js │                   │
-    │ ─────────────────→│                   │
-    │                   │                   │
-    │  2. GET /api/v1/                       │
-    │     balance ──────────────────────────→│
-    │                   │                   │
-    │  3. JSON ←────────────────────────────│
-    │                   │                   │
-    │  4. render        │                   │
-    │  widget           │                   │
+┌────────────┐  ┌────────────┐  ┌────────────┐
+│  Browser   │  │  Hermes    │  │  Polza.ai  │
+│            │  │  WebUI     │  │    API     │
+└─────┬──────┘  └─────┬──────┘  └─────┬──────┘
+      │               │               │
+      │① load polza-  │               │
+      │  balance.js   │               │
+      │──────────────→│               │
+      │               │               │
+      │② GET /api/v1/ │               │
+      │  balance ─────│──────────────→│
+      │               │               │
+      │③ JSON ◄───────│───────────────│
+      │               │               │
+      │④ render       │               │
+      │  widget        │               │
 ```
 
 The extension talks directly to Polza.ai API — WebUI only serves the JS file and adds the CSP exception.
@@ -130,7 +133,6 @@ extensions/polza-balance/
 ├── manifest.json          ← extension metadata (scripts, styles, permissions)
 ├── polza-balance.js       ← widget code
 ├── polza-balance.css      ← styles
-├── preview.png            ← 800×600 screenshot (gallery only)
 └── README.md              ← documentation
 ```
 
