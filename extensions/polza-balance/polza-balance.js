@@ -115,14 +115,12 @@
     if (!apiKey || todayCostLoading) return;
     todayCostLoading = true; renderPopup();
     try {
+      // UTC day boundary — matches Polza LK / CSV export
       const now = new Date();
-      const mskOff = 3 * 3600000;
-      const mskDate = new Date(now.getTime() + mskOff);
-      const dateFrom = new Date(Date.UTC(mskDate.getUTCFullYear(), mskDate.getUTCMonth(), mskDate.getUTCDate()) - mskOff).toISOString();
+      const dateFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
       const dateTo = now.toISOString();
 
-      let allItems = [], page = 1;
-      let totalItems = 0;
+      let allItems = [], seenIds = new Set(), page = 1;
       while (true) {
         const data = await fetchHistory({
           page, limit: 100,
@@ -131,13 +129,14 @@
         });
         if (data.error) { todayCost = { error: data.error, total: 0, count: 0, breakdown: [] }; break; }
         const items = data.items || data.data || [];
-        const metaTotal = (data.meta && data.meta.total) || data.total || 0;
-        if (page === 1) totalItems = metaTotal;
         items.forEach(item => {
+          const id = item.id;
+          if (id && seenIds.has(id)) return;          // deduplicate by id
+          if (id) seenIds.add(id);
           const parsed = parseHistoryItem(item);
           if (parsed.cost > 0) allItems.push(parsed);
         });
-        if (items.length === 0 || items.length < 100 || allItems.length >= metaTotal) break;
+        if (items.length < 100) break;                 // last page
         page++;
       }
 
@@ -159,7 +158,7 @@
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 5);
       todayCost = {
-        total: totalCost, count: totalItems,
+        total: totalCost, count: allItems.length,    // real unique count
         totalIn, totalOut, totalCached, totalReasoning,
         breakdown: top5
       };
