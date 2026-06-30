@@ -11,7 +11,8 @@ Floating widget for [Hermes WebUI](https://github.com/nesquena/hermes-webui) tha
 | 💰 | Current balance — auto-refresh (configurable, default 60s) |
 | 📊 | Click → daily stats: spend, generation count, tokens (in / out) |
 | 🏆 | Top-5 models by today's cost |
-| 🔄 | Paginated history — all today's generations summed |
+| 🔄 | Paginated history with dedup — all daily generations summed |
+| ⛁ | Provider breakdown (DeepSeek, GMICloud, SiliconFlow, etc.) |
 | 🔑 | Change API key via right-click / long-press on balance |
 | 🌗 | Auto-detects dark / light WebUI theme |
 
@@ -68,9 +69,14 @@ API key is stored in browser `localStorage` — persists across sessions.
 ```
 Today — 63.75 ₽
 383 gen · 8.2K in / 4.3K out
+🗄 31% cached · 🧠 1.2K thinking
 ────────────────────────────
 DeepSeek V4 Flash   63.75 ₽
                     8.2K/4.3K
+────────────────────────────
+⛁ Providers
+● DeepSeek (319)    48.78 ₽ avg 0.15
+● GMICloud (64)     33.29 ₽ avg 0.52
 ```
 
 ## Architecture

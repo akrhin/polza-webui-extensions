@@ -1,8 +1,7 @@
 /**
  * Polza.ai Balance Widget — floating widget with auto-refresh
- * Phase 3: Provider badges, cache/reasoning stats, total spent, refresh btn
- * Close popup on outside click.
- * Key + interval configurable via prompt().
+ * UTC day boundary, dedup by id, provider breakdown, cache/reasoning stats
+ * Close popup on outside click. Key + interval configurable via prompt().
  */
 (() => {
   'use strict';
@@ -15,7 +14,11 @@
   const PROVIDER_COLORS = {
     'DeepSeek': '#4a9eff', 'OpenAI': '#10a37f', 'Anthropic': '#d97757',
     'Google': '#4285f4', 'Meta': '#1877f2', 'Mistral': '#ff6b35',
-    'OpenRouter': '#ff6b6b', 'Grok': '#1da1f2', default: '#888'
+    'OpenRouter': '#ff6b6b', 'Grok': '#1da1f2',
+    'GMICloud': '#b37fe0', 'SiliconFlow': '#3b82f6',
+    'AtlasCloud': '#f59e0b', 'DigitalOcean': '#0060ff',
+    'Together': '#7c3aed', 'Groq': '#f97316', 'Fireworks': '#06b6d4',
+    default: '#888'
   };
 
   let apiKey = (() => { try { return localStorage.getItem(KEY) || ''; } catch(e) { return ''; } })();
