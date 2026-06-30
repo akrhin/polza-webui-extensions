@@ -95,20 +95,18 @@ DeepSeek V4 Flash   63.75 ₽
 ## Architecture
 
 ```
-Browser                    Hermes WebUI /extensions/     Polza.ai API
-  │                              │                         │
-  │  load page with              │                         │
-  │  <script src="/extensions/   │                         │
-  │  polza-balance.js">          │                         │
-  │ ────────────────────────────→│                         │
-  │ ← JS file + cookie ─────────│                         │
-  │                              │                         │
-  │  fetch('https://polza.ai/    │                         │
-  │  api/v1/balance')            │                         │
-  │ ──────────────────────────────────────────────────────→│
-  │ ← JSON ───────────────────────────────────────────────│
-  │                              │                         │
-  │  render floating widget      │                         │
+Browser ──────────── Hermes WebUI ─────────── Polza.ai API
+   │                      │                         │
+   │  1. WebUI serves JS  │                         │
+   │  (with page) ───────→│                         │
+   │                      │                         │
+   │  2. fetch() ──────────────────────────────────→│
+   │                      │                         │
+   │  3. JSON (balance,   │                         │
+   │  history) ←───────────────────────────────────│
+   │                      │                         │
+   │  4. Render widget    │                         │
+   │  (popup, table)      │                         │
 ```
 
 The extension JS talks directly to Polza.ai API — WebUI only serves the file and adds the CSP exception.
