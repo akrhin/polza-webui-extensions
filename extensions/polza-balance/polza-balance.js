@@ -146,21 +146,30 @@
       const totalCached = allItems.reduce((s, i) => s + i.cachedTokens, 0);
       const totalReasoning = allItems.reduce((s, i) => s + i.reasoningTokens, 0);
       const byModel = {};
+      const byProvider = {};
       allItems.forEach(i => {
         if (!byModel[i.model]) byModel[i.model] = { cost: 0, promptTokens: 0, completionTokens: 0, cachedTokens: 0 };
         byModel[i.model].cost += i.cost;
         byModel[i.model].promptTokens += i.promptTokens;
         byModel[i.model].completionTokens += i.completionTokens;
         byModel[i.model].cachedTokens += i.cachedTokens;
+        const p = i.provider || 'unknown';
+        if (!byProvider[p]) byProvider[p] = { cost: 0, count: 0 };
+        byProvider[p].cost += i.cost;
+        byProvider[p].count += 1;
       });
       const top5 = Object.entries(byModel)
         .map(([model, stats]) => ({ model, ...stats }))
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 5);
+      const providerList = Object.entries(byProvider)
+        .map(([provider, stats]) => ({ provider, ...stats }))
+        .sort((a, b) => b.cost - a.cost);
       todayCost = {
         total: totalCost, count: allItems.length,    // real unique count
         totalIn, totalOut, totalCached, totalReasoning,
-        breakdown: top5
+        breakdown: top5,
+        providerBreakdown: providerList
       };
     } catch(e) { todayCost = { error: e.message, total: 0, count: 0, totalIn: 0, totalOut: 0, totalCached: 0, totalReasoning: 0, breakdown: [] }; }
     todayCostLoading = false; renderPopup();
@@ -411,6 +420,20 @@
           </div>
         </div>`;
       });
+      // Provider breakdown
+      if (todayCost.providerBreakdown && todayCost.providerBreakdown.length > 1) {
+        html += `<div style="border-top:1px solid ${borderColor};margin-top:4px;padding-top:4px;font-size:10px;color:${dimColor};margin-bottom:4px;">⛁ Providers</div>`;
+        todayCost.providerBreakdown.forEach((p) => {
+          const pcf = fmtNum(p.cost);
+          const pColor = PROVIDER_COLORS[p.provider] || PROVIDER_COLORS.default;
+          const badge = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${pColor};margin-right:4px;vertical-align:middle;"></span>`;
+          const avgP = (p.cost / p.count).toFixed(2);
+          html += `<div style="display:flex;justify-content:space-between;padding:1px 0;font-size:10px;">
+            <span>${badge}${p.provider} <span style="color:${dimColor};">(${p.count})</span></span>
+            <span style="font-weight:600;color:${textColor};">${pcf} ₽ <span style="font-weight:400;color:${dimColor};font-size:9px;">avg ${avgP}</span></span>
+          </div>`;
+        });
+      }
       // Total spent lifetime
       if (totalSpent !== null) {
         html += `<div style="border-top:1px solid ${borderColor};margin-top:6px;padding-top:4px;font-size:10px;color:${dimColor};">
