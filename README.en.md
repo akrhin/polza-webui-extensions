@@ -94,14 +94,23 @@ DeepSeek V4 Flash   63.75 ₽
 
 ## Architecture
 
-The extension works in 4 steps:
+```
+  Browser          Hermes WebUI        Polza.ai API
+    │                   │                   │
+    │  1. load          │                   │
+    │  polza-balance.js │                   │
+    │ ─────────────────→│                   │
+    │                   │                   │
+    │  2. GET /api/v1/                       │
+    │     balance ──────────────────────────→│
+    │                   │                   │
+    │  3. JSON ←────────────────────────────│
+    │                   │                   │
+    │  4. render        │                   │
+    │  widget           │                   │
+```
 
-1. **WebUI serves JS** — the browser loads `polza-balance.js` with the page
-2. **fetch() to Polza API** — the widget directly requests balance and history
-3. **JSON response** — Polza returns balance, generation history
-4. **Render** — the widget draws the balance in the sidebar and the daily stats popup
-
-The extension JS talks directly to Polza.ai API — WebUI only serves the file and adds the CSP exception.
+The extension talks directly to Polza.ai API — WebUI only serves the JS file and adds the CSP exception.
 
 **CSP:** `HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai` permits the browser to `fetch()` the Polza API. Without it the browser blocks the request.
 
