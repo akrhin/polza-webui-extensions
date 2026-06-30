@@ -11,15 +11,16 @@
   const HISTORY_URL = 'https://polza.ai/api/v1/history/generations';
   const TOPUP_URL = 'https://polza.ai/dashboard/billing';
 
-  const PROVIDER_COLORS = {
-    'DeepSeek': '#4a9eff', 'OpenAI': '#10a37f', 'Anthropic': '#d97757',
-    'Google': '#4285f4', 'Meta': '#1877f2', 'Mistral': '#ff6b35',
-    'OpenRouter': '#ff6b6b', 'Grok': '#1da1f2',
-    'GMICloud': '#b37fe0', 'SiliconFlow': '#3b82f6',
-    'AtlasCloud': '#f59e0b', 'DigitalOcean': '#0060ff',
-    'Together': '#7c3aed', 'Groq': '#f97316', 'Fireworks': '#06b6d4',
-    default: '#888'
-  };
+  function providerColor(name) {
+    if (!name) return '#888';
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 6) - hash);
+    }
+    // Золотое сечение → максимальная угловая дистанция между оттенками
+    const hue = (((hash * 0.618033988749895) % 1) + 1) % 1;
+    return `hsl(${Math.round(hue * 360)}, 55%, 50%)`;
+  }
 
   let apiKey = (() => { try { return localStorage.getItem(KEY) || ''; } catch(e) { return ''; } })();
   let intervalSec = (() => {
@@ -428,7 +429,7 @@
         html += `<div style="border-top:1px solid ${borderColor};margin-top:4px;padding-top:4px;font-size:10px;color:${dimColor};margin-bottom:4px;">⛁ Providers</div>`;
         todayCost.providerBreakdown.forEach((p) => {
           const pcf = fmtNum(p.cost);
-          const pColor = PROVIDER_COLORS[p.provider] || PROVIDER_COLORS.default;
+          const pColor = providerColor(p.provider);
           const badge = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${pColor};margin-right:4px;vertical-align:middle;"></span>`;
           const avgP = (p.cost / p.count).toFixed(2);
           html += `<div style="display:flex;justify-content:space-between;padding:1px 0;font-size:10px;">
@@ -468,7 +469,7 @@
         const time = item.createdAt ? fmtTime(item.createdAt) : '';
         const genTime = item.genTimeMs ? fmtMs(item.genTimeMs) : '';
         // Provider badge
-        const pColor = PROVIDER_COLORS[item.provider] || PROVIDER_COLORS.default;
+        const pColor = providerColor(item.provider);
         const badge = item.provider
           ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${pColor};margin-right:4px;vertical-align:middle;" title="${escHtml(item.provider)}"></span>`
           : '';
