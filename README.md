@@ -38,18 +38,31 @@
 
 ### Вручную
 
-Добавьте в `.env` WebUI:
-
-```bash
-HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
-HERMES_WEBUI_EXTENSION_SCRIPT_URLS=/extensions/polza-balance/polza-balance.js
-HERMES_WEBUI_EXTENSION_STYLESHEET_URLS=/extensions/polza-balance/polza-balance.css
-```
-
-Скопируйте папку `extensions/polza-balance/` в директорию расширений вашего WebUI:
+Скопируйте папку расширения в директорию расширений WebUI:
 
 ```bash
 cp -r extensions/polza-balance/ ~/.hermes/webui/extensions/polza-balance/
+```
+
+Убедитесь, что в `.env` WebUI прописана директория расширений:
+
+```bash
+HERMES_WEBUI_EXTENSION_DIR=/home/sintez/.hermes/webui/extensions
+HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
+```
+
+Если файл `~/<STATE_DIR>/extensions/manifest.json` существует, WebUI загрузит расширение автоматически — никаких `SCRIPT_URLS` не нужно. При отсутствии манифеста создайте:
+
+```json
+{
+  "extensions": [
+    {
+      "id": "polza-balance",
+      "scripts": ["polza-balance/polza-balance.js"],
+      "stylesheets": ["polza-balance/polza-balance.css"]
+    }
+  ]
+}
 ```
 
 Перезапустите WebUI и сделайте жёсткую перезагрузку браузера (Ctrl+Shift+R).

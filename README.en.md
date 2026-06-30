@@ -38,18 +38,31 @@ Open **Settings → Extensions** in Hermes WebUI, find **Polza.ai Balance**, cli
 
 ### Manual
 
-Add to WebUI `.env`:
-
-```bash
-HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
-HERMES_WEBUI_EXTENSION_SCRIPT_URLS=/extensions/polza-balance/polza-balance.js
-HERMES_WEBUI_EXTENSION_STYLESHEET_URLS=/extensions/polza-balance/polza-balance.css
-```
-
-Copy the `extensions/polza-balance/` folder to your WebUI extension directory:
+Copy the extension folder to your WebUI extension directory:
 
 ```bash
 cp -r extensions/polza-balance/ ~/.hermes/webui/extensions/polza-balance/
+```
+
+Make sure your WebUI `.env` points to the extension directory:
+
+```bash
+HERMES_WEBUI_EXTENSION_DIR=/home/sintez/.hermes/webui/extensions
+HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
+```
+
+If `~/<STATE_DIR>/extensions/manifest.json` exists, WebUI loads the extension automatically — no `SCRIPT_URLS` needed. If the manifest is missing, create it:
+
+```json
+{
+  "extensions": [
+    {
+      "id": "polza-balance",
+      "scripts": ["polza-balance/polza-balance.js"],
+      "stylesheets": ["polza-balance/polza-balance.css"]
+    }
+  ]
+}
 ```
 
 Restart WebUI and hard-reload the browser (Ctrl+Shift+R).
