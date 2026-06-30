@@ -6,8 +6,8 @@ Floating widget for [Hermes WebUI](https://github.com/nesquena/hermes-webui) tha
 
 ## Features
 
-| | |
-|---|---|
+| Icon | Description |
+|------|-------------|
 | 💰 | Current balance — auto-refresh (configurable, default 60s) |
 | 📊 | Click → daily stats: spend, generation count, tokens (in / out) |
 | 🏆 | Top-5 models by today's cost |
@@ -19,8 +19,8 @@ Floating widget for [Hermes WebUI](https://github.com/nesquena/hermes-webui) tha
 ## Repository Structure
 
 ```
-├── README.md            ← this file (English)
-├── README.ru.md         ← Russian version
+├── README.md            ← Russian version
+├── README.en.md         ← this file (English)
 ├── extensions/
 │   └── polza-balance/
 │       ├── manifest.json      ← WebUI extension manifest
@@ -47,11 +47,11 @@ cp -r extensions/polza-balance/ ~/.hermes/webui/extensions/polza-balance/
 Make sure your WebUI `.env` points to the extension directory:
 
 ```bash
-HERMES_WEBUI_EXTENSION_DIR=/home/sintez/.hermes/webui/extensions
+HERMES_WEBUI_EXTENSION_DIR=/path/to/your/extensions
 HERMES_WEBUI_CSP_CONNECT_EXTRA=https://polza.ai
 ```
 
-If `~/<STATE_DIR>/extensions/manifest.json` exists, WebUI loads the extension automatically — no `SCRIPT_URLS` needed. If the manifest is missing, create it:
+If the file `~/STATE_DIR/extensions/manifest.json` exists, WebUI loads the extension automatically — no `SCRIPT_URLS` needed. If the manifest is missing, create it:
 
 ```json
 {
@@ -220,28 +220,31 @@ balance = d.credits_remaining;
 
 </details>
 
-### Checklist
-
-- [ ] Balance URL updated
-- [ ] History URL updated (or removed if not available)
-- [ ] Response field names updated
-- [ ] CSP origin added to `.env`
-- [ ] Extension ID changed (to avoid conflicts)
-- [ ] WebUI restarted, browser hard-reloaded
-
 ## FAQ
 
-**Q:** Why `localStorage` for the API key?
-**A:** The key should never leave the browser. No server-side storage, no cookie that leaks to WebUI. Simple and secure enough for self-hosted.
+<details>
+<summary>Why localStorage for the API key?</summary>
 
-**Q:** Why does the popup show 0 generations?
-**A:** The API key in the browser doesn't match the one used for generation. Right-click the balance and enter the correct key.
+The key never leaves the browser — no server-side storage, no cookies that leak to WebUI. Simple and secure enough for self-hosted setups.
+</details>
 
-**Q:** How to change the refresh interval?
-**A:** Right-click the balance → second prompt asks for seconds (default 60, max 3600).
+<details>
+<summary>Why does the popup show 0 generations?</summary>
 
-**Q:** How to uninstall?
-**A:** Remove from gallery (Settings → Extensions) or delete the files from `HERMES_WEBUI_EXTENSION_DIR` and remove CSP var from `.env`. Restart WebUI.
+The API key in your browser doesn't match the one used for generation. Right-click the balance and enter the correct key.
+</details>
+
+<details>
+<summary>How to change the refresh interval?</summary>
+
+Right-click the balance → you'll be asked for seconds (default 60, max 3600). The value persists in `localStorage`.
+</details>
+
+<details>
+<summary>How to uninstall?</summary>
+
+Remove from gallery (Settings → Extensions) or delete the files from `HERMES_WEBUI_EXTENSION_DIR` and remove CSP var from `.env`. Restart WebUI.
+</details>
 
 ---
 
